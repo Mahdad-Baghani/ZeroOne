@@ -6,32 +6,25 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Threading;
-public class BacktoryBackend : MonoBehaviour
+using Assets.Scripts.Threads;
+
+public class BacktoryBackend: MonoBehaviour
 {
     private static BacktoryBackend _instance;
 
     public static BacktoryBackend instance
     {
         get { return _instance; }
-        set { _instance = value; }
+        private set { _instance = value; }
     }
     private ILeaderboardAsync leaderboard;
     private IRegistrationObserver registerBooth; // !!
 
-    public Text log;
-
-
-
-    private void Awake()
+    public void Awake()
     {
-        DontDestroyOnLoad(this.gameObject);
         if (_instance == null)
         {
             instance = this;
-        }
-        else
-        {
-            Destroy(this.gameObject);
         }
     }
     public bool InitializeBacktoryAsync(ILeaderboardAsync leaderboard)
@@ -79,26 +72,24 @@ public class BacktoryBackend : MonoBehaviour
         ((response) =>
         {
             registerBooth.RecieveRegistrationStatus(response);
-            PrintCallBack<BacktoryUser>();
+            //PrintCallBack<BacktoryUser>();
         });
     }
 
     public void Login(string username, string password)
     {
-        BacktoryUser.LoginInBackground(username, password, response => log.text = response.Successful ? "succeeded" : "failed; " + response.Message);
+        BacktoryUser.LoginInBackground
+            (username,
+            password,
+            response =>
+            {
+                registerBooth.RecieveLoginStatus(response);
+            });
     }
     public void SendPlayerStats(int bitScore, int timeScore)
     {
-        string str = "";
-        //Debug.Log("sending score is started");
-        new BacktoryEventModel(bitScore, timeScore).SendInBackground(response => str = response.Successful ? "succeeded" : "failed");
-        //Debug.Log("send score to server" + PlayerPrefs.GetInt("bestScore").ToString());
-        //Debug.Log(str);
-
+        new BacktoryEventModel(bitScore, timeScore).SendInBackground(response => {/* response.Successful ? "succeeded" : "failed"*/ });
     }
-
-
-
     public void GetPlayerRank()
     {
         new TopPlayersLeaderBoard().GetPlayerRankInBackground(rankResponse =>
@@ -107,16 +98,11 @@ public class BacktoryBackend : MonoBehaviour
             // Check if backtory returned result successfully
             if (rankResponse.Successful)
             {
-                // Extract response info
-                //string leaderboardPosition = "my rank: " + rankResponse.Body.Rank
-                //        + "\n my scores: " + rankResponse.Body.Scores;
-                //playerRank = rankResponse.Body.Rank;
-                //// Log it
-                //Debug.Log("leader board pos : " + leaderboardPosition);
                 leaderboard.ReceiveCurrentPlayerRank(rankResponse.Body.Rank);
             }
             else
             {
+                // #revision
                 // do something based on error code
                 leaderboard.ReceiveCurrentPlayerRank(-1);
             }
@@ -140,10 +126,8 @@ public class BacktoryBackend : MonoBehaviour
             }
             else
             {
-
+                // #revision
                 // do something based on error code
-                leaderboard.ReceiveAroundPlayers(null);
-
             }
         });
     }
@@ -161,100 +145,26 @@ public class BacktoryBackend : MonoBehaviour
             }
             else
             {
+                // #revision
                 // do something based on error code
-                leaderboard.ReceiveTopPlayers(null);
             }
         });
     }
   
 
-    //public void onGetTopPlayers()
+    //public void onAroundMePlayers()
     //{
-    //    new TopPlayersLeaderBoard().GetTopPlayersInBackground(5, PrintCallBack<BacktoryLeaderBoard.LeaderBoardResponse>());
-
+    //    new TopPlayersLeaderBoard().GetPlayersAroundMeInBackground(5, PrintCallBack<BacktoryLeaderBoard.LeaderBoardResponse>());
     //}
-
-    public void onAroundMePlayers()
-    {
-        new TopPlayersLeaderBoard().GetPlayersAroundMeInBackground(5, PrintCallBack<BacktoryLeaderBoard.LeaderBoardResponse>());
-    }
 
     #endregion
 
-    #region sample stuff
-    internal const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    private static string LastGenEmail;
-
-    private static string LastGenUsername
-    {
-        get
-        {
-            return PlayerPrefs.GetString("last username");
-        }
-        set
-        {
-            PlayerPrefs.SetString("last username", value);
-        }
-    }
-    private static string LastGenPassword
-    {
-        get
-        {
-            return PlayerPrefs.GetString("last password");
-        }
-        set
-        {
-            PlayerPrefs.SetString("last password", value);
-        }
-    }
-
-    private static string RandomAlphabetic(int length)
-    {
-        var charArr = new char[length];
-        //var random = new System.Random(Environment.TickCount);
-        for (int i = 0; i < charArr.Length; i++)
-        {
-            //charArr[i] = chars[random.Next()];
-            charArr[i] = chars[UnityEngine.Random.Range(0, chars.Length)];
-        }
-        return new string(charArr);
-    }
-
-    internal static string GenerateEmail(bool random)
-    {
-        string s = random ? RandomAlphabetic(3) + "@" + RandomAlphabetic(3) + ".com" : "ar.d.farahani@gmail.com";
-        LastGenEmail = s;
-        return s;
-    }
-
-    internal static string GenerateUsername(bool random)
-    {
-        string s = random ? RandomAlphabetic(6) : "hamze";
-        LastGenUsername = s;
-        return s;
-    }
-
-    internal static string GeneratePassword(bool random)
-    {
-        string s = random ? RandomAlphabetic(6) : "1234";
-        LastGenPassword = s;
-        return s;
-    }
 
     internal Action<IBacktoryResponse<T>> PrintCallBack<T>()
     {
         return (backtoryResponse) =>
         {
-
-            if (backtoryResponse.Successful)
-            {
-                log.text = JsonConvert.SerializeObject(backtoryResponse.Body, Formatting.Indented, JsonnetSetting());
-                Debug.Log(log);
-            }
-            else
-            {
-                log.text = backtoryResponse.Message;
-            }
+            Debug.Log(JsonConvert.SerializeObject(backtoryResponse.Body, Formatting.Indented, JsonnetSetting()));
         };
     }
 
@@ -268,44 +178,4 @@ public class BacktoryBackend : MonoBehaviour
             ContractResolver = new CamelCasePropertyNamesContractResolver(),
         };
     }
-    //public class GlobalEventListener : IGlobalEventListener
-    //{
-    //  public Text resultText { set; get; }
-    //  public void OnEvent(BacktorySDKEvent logoutEvent)
-    //  {
-    //    if (logoutEvent is LogoutEvent)
-    //      resultText.text = "you must login again!";
-    //  }
-    //}
-    #endregion
-
-
-    //public void onGuestRegisterClick()
-    //{
-    //    UnityWebRequest.Get("").Send();
-    //    StartCoroutine(GuestRegister());
-
-    //}
-
-    //IEnumerator GuestRegister()
-    //{
-    //    UnityWebRequest guestLoginRequest = new BacktoryUser().LoginAsGuest();
-    //    guestLoginRequest.SetRequestHeader(Backtory.ContentTypestring, Backtory.ApplicationJson);
-    //    guestLoginRequest.SetRequestHeader(Backtory.AuthIdstring, BacktoryConfig.BacktoryAuthInstanceId);
-    //    yield return guestLoginRequest.Send();
-
-    //    if (guestLoginRequest.isError)
-    //    {
-    //        switch (guestLoginRequest.responseCode)
-    //        {
-    //            case (int)HttpStatusCode.NotFound:
-    //                //TODO: update result textview
-    //                Debug.Log(guestLoginRequest.downloadHandler.text);
-    //                break;
-    //        }
-    //    } else
-    //    {
-    //        Debug.Log(guestLoginRequest.downloadHandler.text);
-    //    }
-    //}
 }

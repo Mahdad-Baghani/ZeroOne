@@ -7,7 +7,6 @@ using System.Collections;
 using System;
 using DG.Tweening;
 using Random = UnityEngine.Random;
-using DG.Tweening;
 
 public enum Gender
 {
@@ -28,6 +27,7 @@ public class RegistrationMenu : MonoBehaviour, IRegistrationObserver
     private Gender userGender = Gender.none;
     [SerializeField] private Image nameErrorIndicator, emailErrorIndicator, genderErrorIndicator;
 
+    #region UI funx
     private void Awake()
     {
         BacktoryBackend.instance.InitializeBacktoryRegistrationObserver(this as IRegistrationObserver);
@@ -40,7 +40,7 @@ public class RegistrationMenu : MonoBehaviour, IRegistrationObserver
 
     private void SetUpButtons()
     {
-        RegisterBtn.onClick.AddListener(() => StartCoroutine(RegisterUser()));
+        RegisterBtn.onClick.AddListener(() => RegisterUser());
         SelectMaleGenderBtn.onClick.AddListener(() => userGender = Gender.male);
         SelectFemaleGenderBtn.onClick.AddListener(() => userGender = Gender.female);
     }
@@ -57,7 +57,34 @@ public class RegistrationMenu : MonoBehaviour, IRegistrationObserver
             inpField.onValueChanged.AddListener(onValueChangedEvent);
         }
     }
+    private void LoadRegistration()
+    {
+        DollyTheMenuIn();
+    }
+    private void DollyTheMenuIn()
+    {
+        gameObject.SetActive(true);
+        transform.DOLocalMoveX(10, 0.6f).SetEase(Ease.InBack);
+    }
+    private void HideRegistrationUI()
+    {
+        transform.DOLocalMoveX(-777, 0.6f).SetEase(Ease.OutBack).OnComplete(() => { print("asd"); gameObject.SetActive(false); });
+        this.gameObject.SetActive(false);
+    }
 
+    private void ShowErrorIndicator(Image errorInd)
+    {
+        errorInd.gameObject.SetActive(true);
+        errorInd.DOFade(1, 0.2f).SetLoops(3).OnComplete(() => errorInd.DOFade(0,0.2f));
+        //errorInd.CrossFadeAlpha(255f, 1f, true);
+        //yield return new WaitForSeconds(1f);
+        //errorInd.CrossFadeAlpha(0, 1f, true);
+        //yield return new WaitForSeconds(1f);
+    }
+
+    #endregion
+
+    #region network login & registration stuff
     private void CheckIfUserIsRegistered()
     {
         try
@@ -82,16 +109,11 @@ public class RegistrationMenu : MonoBehaviour, IRegistrationObserver
         }
 
     }
-    private void LoadRegistration()
-    {
-        this.gameObject.SetActive(true);
-        DollyTheMenuIn();
-    }
+
     private void Login_n_SkipRegistration()
     {
         string user = PlayerPrefs.GetString("bitwarUser");
         string pass = PlayerPrefs.GetString("bitwarPass");
-        int highScore = PlayerPrefs.GetInt("bitwarHighscore");
         #region Debug n stuff
         //Debug.Log("username: " + user + " pass : " + pass + " with score of : " + highScore.ToString());
         #endregion
@@ -102,72 +124,36 @@ public class RegistrationMenu : MonoBehaviour, IRegistrationObserver
             return;
         }
         BacktoryBackend.instance.Login(user, pass);
-        BacktoryBackend.instance.SendPlayerStats(highScore, 0);
-        //GoToMainMenu();
+        // callback comes in a separate func... heyfesh
     }
-    private void DollyTheMenuIn()
+    private void RegisterUser()
     {
-        gameObject.SetActive(true);
-        transform.DOLocalMoveX(10, 0.6f).SetEase(Ease.InBack);
-    }
-
-    private void HideRegistrationUI()
-    {
-        transform.DOLocalMoveX(-777, 0.6f).SetEase(Ease.OutBack).OnComplete(() => { print("asd"); gameObject.SetActive(false); });
-    }
-
-    private IEnumerator RegisterUser()
-    {
-        bool errorAccoured = false;
         if (nameTxt.text == "")
         {
             //throw new System.Exception("please enter a valid user name");
             ShowErrorIndicator(nameErrorIndicator);
-            errorAccoured = true;
         }
         if (emailTxt.text == "")
         {
             //throw new System.Exception("please enter an email");
             ShowErrorIndicator(emailErrorIndicator);
-            errorAccoured = true;
         }
         if (!TestEmail.instance.IsEmail(emailTxt.text))
         {
             //throw new System.Exception("please enter a valid email addres");
             ShowErrorIndicator(emailErrorIndicator);
-            errorAccoured = true;
         }
         if (userGender == Gender.none)
         {
             //throw new System.Exception("Please select your gender");
             ShowErrorIndicator(genderErrorIndicator);
-            errorAccoured = true;
-            
-        }
-        if (errorAccoured)
-        {
-            yield break;
         }
         else
         {
-            // network.Register(nameTxt.text, emailTxt.text);
-            //if successful
-            //string username = PlayerPrefs.GetString("bitwarUser");
+            // callback comes in a separate func... heyfesh
             BacktoryBackend.instance.RegisterUser(userGender.ToString(), nameTxt.text, emailTxt.text);
-            yield return new WaitForSeconds(5f);//WHY
-            BacktoryBackend.instance.Login(nameTxt.text, emailTxt.text);
-            yield return new WaitForSeconds(5f);//WHY
-            BacktoryBackend.instance.SendPlayerStats(77, 0);
-            SavePlayer(nameTxt.text, emailTxt.text);
-            //GoToMainMenu();
         }
 
-    }
-    private void GoToMainMenu()
-    {
-        this.gameObject.SetActive(false);
-        //UIController.instance.MainMenu.SetActive(true);
-        //SceneManager.LoadScene(1); // main game scene
     }
 
     private void SavePlayer(string userName, string password)
@@ -181,6 +167,7 @@ public class RegistrationMenu : MonoBehaviour, IRegistrationObserver
         PlayerPrefs.SetInt("bitwayHighscore", 0);
     }
 
+    // # revision
     public void SkipLogin()
     {
         UIController.instance.AskYesNoQuestion("you won't be able to compete with others\n" +
@@ -204,30 +191,35 @@ public class RegistrationMenu : MonoBehaviour, IRegistrationObserver
     {
         if ((BacktoryHttpStatusCode)registrationResponse.Code == BacktoryHttpStatusCode.Created)
         {
-            //UIController.instance.ThrowDialogBox("hello " + registrationResponse.Body.Username.faConvert() + " !\nGo and fight; for glory... for honor.", UIController.instance.CloseDialogBox, UIDialogType.Information);
-            Debug.Log("hello " + registrationResponse.Body.Username.faConvert() + " !\nGo and fight; for glory... for honor.");
+            //Debug.Log("hello " + registrationResponse.Body.Username.faConvert() + " !\nGo and fight; for glory... for honor.");
+            BacktoryBackend.instance.Login(nameTxt.text, emailTxt.text);
+            SavePlayer(nameTxt.text, emailTxt.text);
             
             HideRegistrationUI();
         }
         else if ((BacktoryHttpStatusCode)registrationResponse.Code == BacktoryHttpStatusCode.Conflict)
         {
+            // # revision
             //UIController.instance.ThrowDialogBox("There already exists a user with the name " + registrationResponse.Body.Username + "\nTry a different Username", UIController.instance.CloseDialogBox, UIDialogType.Error);
-            Debug.Log("There already exists a user with the name " + registrationResponse.Body.Username + "\nTry a different Username");
         }
         else if ((BacktoryHttpStatusCode)registrationResponse.Code == BacktoryHttpStatusCode.InternetAccessProblem)
         {
+            // # revision
             //UIController.instance.ThrowDialogBox("Check your intenet connection", UIController.instance.CloseDialogBox, UIDialogType.Error);
-            Debug.Log("Check your intenet connection");
         }
     }
-
-    private void ShowErrorIndicator(Image errorInd)
+    public void RecieveLoginStatus(IBacktoryResponse<object> resp)
     {
-        errorInd.gameObject.SetActive(true);
-        errorInd.DOFade(1, 0.2f).SetLoops(3).OnComplete(() => errorInd.DOFade(0,0.2f));
-        //errorInd.CrossFadeAlpha(255f, 1f, true);
-        //yield return new WaitForSeconds(1f);
-        //errorInd.CrossFadeAlpha(0, 1f, true);
-        //yield return new WaitForSeconds(1f);
+        //  so backtory returns null as of now for resp
+        // donno why
+        // go to menu
+        // we kinda have to send an event just as a workaround for this wierd functionality of backend provider
+        int normalSc = PlayerPrefs.GetInt("NormalScore");
+        int hardcoreSc = PlayerPrefs.GetInt("HardScore");
+
+        BacktoryBackend.instance.SendPlayerStats(normalSc, hardcoreSc);
+
     }
+
+    #endregion
 }

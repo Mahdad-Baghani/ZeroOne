@@ -73,7 +73,8 @@ public class Leaderboard : MonoBehaviour, ILeaderboardAsync
         }
         if (aroundPlayers == null || top3 == null)
         {
-            throw new System.Exception("you did not pass ant argument as aroundPlayers or top3; I need that stuff, man!");
+            // # revision
+            Debug.Log("you did not pass ant argument as aroundPlayers or top3; I need that stuff, man!");
         }
         if (currentRank == 1 || currentRank == 2 || currentRank == 3)
         {
@@ -92,7 +93,7 @@ public class Leaderboard : MonoBehaviour, ILeaderboardAsync
         //aroundPlayers.Sort((a, b) => a.rank.CompareTo(b.rank));
         IdentifyAsCurrentPlayer(aroundPlayersPrefabs[currentPlayerRank - aroundPlayers[0].rank]);
         for (int i = 0; i < aroundPlayers.Count; i++)
-        {
+        { 
             aroundPlayersPrefabs[i].SetPlayerStats(aroundPlayers[i], inTop3: false);
         }
     }
@@ -143,26 +144,22 @@ public class Leaderboard : MonoBehaviour, ILeaderboardAsync
         if(rank != -1)
         {
             currentPlayerRank = rank;
-            StartCoroutine(GetOnWithLeaderboard(rank));
+            StartCoroutine(RecieveCurrentPlayerRankCr(rank));
         }
         else
         {
+            // # throw UI error
             throw new System.Exception("Could not retrieve players rank; try again later!!!");
         }
     }
-    private IEnumerator GetOnWithLeaderboard(int currentRank)
+    private IEnumerator RecieveCurrentPlayerRankCr(int currentRank)
     {
+        yield return null;
         if (currentRank > 3)
         {
             BacktoryBackend.instance.GetPlayerAround();
         }
         BacktoryBackend.instance.GetTopPlayers();
-        while (Top3.Count == 0)
-        {
-            yield return new WaitForSeconds(1f);
-        }
-        //UIController.instance.FadeOut(LeaderboardLoadingPage);
-        SetLeaderboard(currentRank, AroundMe, Top3);
     }
     public void ReceiveAroundPlayers(List<BacktoryLeaderBoard.UserProfile> around)
     {
@@ -179,5 +176,6 @@ public class Leaderboard : MonoBehaviour, ILeaderboardAsync
         {
             Top3.Add(BitwarPlayer.Parse(topPlayersInList[i], i + 1)); 
         }
+        SetLeaderboard(currentPlayerRank, AroundMe, Top3);
     }
 }
